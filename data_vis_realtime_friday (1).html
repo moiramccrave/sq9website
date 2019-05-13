@@ -1,0 +1,437 @@
+
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="600"/>
+  <script src="./moment.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vega-lite@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@4"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.9.2/d3.min.js"></script>
+  <link href="https://fonts.googleapis.com/css?family=Lato|Montserrat:400,700" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+  <!-- <script src="kalman.min.js" type="text/javascript"></script> -->
+
+
+  <style type="text/css" media="screen">
+  body {
+  overflow-x: hidden;
+  font-family: 'Roboto Slab', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+  h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+#vis {
+  position:relative;
+  margin:20vh 0 0 0;
+}
+.background{
+position:absolute;
+left:0 ;
+top:0;
+}
+.marks {
+  z-index:-2;
+  position: absolute;
+}
+.time{
+  font-family:"Montserrat","Lato",sans-serif;
+  font-size:1.2rem;
+  font-weight:600;
+  vertical-align: bottom;
+  text-align:center;
+  margin-top:1rem;
+}
+.vega-bindings{
+  font-family:"Montserrat","Lato",sans-serif;
+  font-size:1.3rem;
+  font-weight:400;
+  text-align:end;
+  margin-right:4rem;
+  margin-top:-3rem;
+}
+.vega-bind-name{
+  padding-right:1rem;
+}
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+    input[type='range'] {
+      overflow: hidden;
+      width: 150px;
+      -webkit-appearance: none;
+      background-color: #63c1d9;
+      margin-right:1rem;
+    }
+
+    input[type='range']::-webkit-slider-runnable-track {
+      height: 15px;
+      -webkit-appearance: none;
+      color: #63c1d9;
+      margin-top: -1px;
+      margin-right:1rem;
+    }
+
+    input[type='range']::-webkit-slider-thumb {
+      width: 10px;
+      -webkit-appearance: none;
+      height: 20px;
+      cursor: pointer;
+      background: #ffffff;
+      box-shadow: -80px 0 0 80px #63c1d9;
+      margin-right:1rem;
+    }}
+details {
+  display: none;
+}
+h1 {
+  position: fixed;
+  width:1560px;
+  top:20px;
+  left:0;
+  text-align: center;
+  font-weight:700;
+}
+#description {
+  position:fixed;
+  top:0;
+  right:0;
+  width:calc(100% - 1580px);
+  height:100vh;
+  background:#63c1d9;
+  padding:20px;
+}
+#description h2 {
+  background: white;
+    padding: 10px;
+}
+#description p {
+  font-weight: 400;
+}
+#h1_time {
+  text-decoration: underline;
+}
+#logo {
+  position: fixed;
+  top:20px;
+  left:20px;
+}
+    </style>
+</head>
+
+
+
+<body>
+  <!-- <img src="img/logos/logo1.png" id="logo"> -->
+  <h1>Heatmap of activity in @SQ9 <span id="h1_time"></span> in <u>real time</u></h1>
+  <div id="description">
+      <h2>What is @SQ9?</h2>
+      <p>What makes a successful public space? @SQ9 is a pop-up event organized by MIT Class 11.458, Crowd Sourced City: Civic Tech Prototyping, that seeks to measure how physical interventions can activate and improve public spaces. From May 7th to May 10th, the plaza in front of MIT Building 9 will be transformed by furniture, paint, and plants. Throughout the week, digital technology will be used to provide data-driven analysis on best practices for public space programming.</p>
+
+      <h2>How will @SQ9 use collected data?</h2>
+      <p>@SQ9 is tracking place, not people. We are are not collecting any personal information, and all of the data that we do collect is aggregated and not personally identifiable. All video recordings will be captured from an aerial view, and image processing performed will be unable to conduct facial recognition. No voice or audio recordings will be made. If you have any questions or privacy concerns, please contact the @SQ9 team at sq9@mit.edu.</p>
+      <h2>See more at <u>sq9.mit.edu</u></h2>
+    </div>
+  <div id="vis">
+  </div>
+  <script>
+
+var raw;
+var data = [];
+var date = moment().format("YYYY-MM-DD%20HH:mm:ss");
+var url = 'https://crowdsourcedcity-api.herokuapp.com/api/devices_scanners.json?timestamp=' + date;
+
+const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v3.json",
+//   "title": {text:"@SQ9 Heat Map",font:"Verdana",fontSize:24,offset:40},
+  "data": {"values": data
+  // dataExponentialKalman
+  },
+  "width": 1483,
+  "height": 785,
+  "padding":{"left": 17, "top": 5, "right": 5, "bottom": 5},
+  "autosize":{type: 'fit', resize:true},
+  "config":{view: {strokeWidth: 0},axis:{domain:false}},
+  "layer":[
+    {
+      "transform":[{
+        "filter":
+          {"field":"type","equal":"wifi"}
+          // {"field":"is_furniture","equal":false}
+      }, {
+        "filter":
+          {"field": "x", "range": [0, 33]}
+      }, {
+        "filter":
+          {"field": "y", "range": [0, 17]}
+      }],
+      "mark":{
+        type: 'rect'},
+      "encoding": {
+        "x": {
+          bin: {extent:[0,33],
+          step: 0.5},
+          field: 'x',
+          type: 'quantitative',
+          axis: {
+            // tickCount: 20,
+            ticks:false,
+            title:'',
+            labels:false,
+            grid: false,
+            domain:false
+          }
+
+        },
+        "y": {
+          bin: { extent: [0,17],
+                step:0.5},
+          field: 'y',
+          type: 'quantitative',
+          axis: {
+            // tickCount: 20,
+            title: '',
+            ticks:false,
+            labels:false,
+            grid: false,
+            domain:false
+          },
+
+        },
+        "color": {
+          field: 'people',
+          aggregate: 'count',
+          type: 'quantitative',
+          legend:null,
+          title:"# of People",
+          scale: {"range": ["#EDE4E4", "#FF4D4D"]}
+        },
+        "opacity": {"value": 0.5
+        },
+        "tooltip":[
+        // {type:"nominal",field:"y",value:"people"},
+        {field:"x",aggregate:"count",type: "quantitative",title:"# of data"}]
+      },
+    },
+
+    {
+      "transform":[{
+        "filter":
+        //   {"field":"type","equal":"bluetooth"}
+          {"field":"is_furniture","equal":true}
+      }, {
+        "filter":
+          {"field": "x", "range": [0, 33]}
+      }, {
+        "filter":
+          {"field": "y", "range": [0, 17]}
+      }],
+      "mark": 'rect',
+      "encoding": {
+        "x": {
+          bin: {extent:[0,33],
+          step:0.5},
+          field: 'x',
+          type: 'quantitative',
+          axis: {
+            domain:false},
+          //   // tickCount: 20,
+            ticks:false,
+          //   title:'',
+          //   labels:false,
+          // }
+
+        },
+        "y": {
+          bin: { extent: [0,17],
+                step:0.5},
+          field: 'y',
+          type: 'quantitative',
+          axis: {
+            domain:false},
+          //   // tickCount: 20,
+          //   title: '',
+            ticks:false,
+          // },
+
+        },
+        "color": {
+          field: 'furniture',
+          aggregate: 'count',
+          type: 'quantitative',
+          legend:null,
+          scale:{
+            range: ["#D6EDE8", "#00CCDB"]
+          }
+
+        },
+        "opacity": {
+          value:0.3
+        },
+        "tooltip":{type:"nominal",value:"furniture"}
+
+      },
+
+
+    },
+  ] ,
+
+    "resolve": {"scale": {"color":"independent"}}
+}
+
+raw = d3.json(url)
+
+setInterval(function(){
+  var m = moment();
+  var date = m.format("YYYY-MM-DD%20HH:mm:ss");
+
+  url = 'https://crowdsourcedcity-api.herokuapp.com/api/devices_scanners.json?timestamp=' + date;
+
+  raw = d3.json(url)
+
+  raw.then(function(raw_data){
+  devices = raw_data.result.devices;
+    devices.forEach(function(d){
+      let currRow = {}
+      currRow.x = d.coordinates[0];
+      currRow.y = d.coordinates[1];
+      currRow.type = d.type;
+      currRow.is_furniture = d.is_furniture;
+      currRow.hour = date.slice(13,15);
+      data.push(currRow)
+  })
+
+    	vegaEmbed('#vis', spec)
+    	// result.view provides access to the Vega View API
+      .then(result => {
+        console.log(result);
+
+        var timeframeDate = moment().format("MMM D");
+        var timeframeHour = moment().subtract(30, 'm').format("hh : mm A");
+        var element = $("<div />");
+            element.append($("<img src='SQ9map-01.png' width=1523 />"));
+            element.addClass("container");
+            element.append('<div class="time">'+
+            // +timeframeDate+' &nbsp;&nbsp;from '+timeframeHour+' to current'+
+
+            '</div>');
+        $("#vis").append(element);
+
+      })
+      .catch(console.warn);
+  });
+
+  // console.log(data)
+
+  var minute = m.format("mm");
+  var second = m.format("ss");
+  console.log(minute);
+  if (minute == 00) {
+    location.reload();
+  }
+
+},20000)
+
+
+// }, ;
+
+
+  // var dataExponentialKalman = data.map(function(v) {
+  // return kalmanFilter.filter(v);
+// });
+
+
+  raw.then(function(raw_data){
+    devices = raw_data.result.devices;
+      devices.forEach(function(d){
+        let currRow = {}
+        currRow.x = d.coordinates[0];
+        currRow.y = d.coordinates[1];
+        currRow.type = d.type;
+        currRow.is_furniture = d.is_furniture;
+        data.push(currRow)
+    });
+
+
+    console.log('data ok')
+
+
+
+
+
+  	vegaEmbed('#vis', spec)
+    	// result.view provides access to the Vega View API
+      .then(result => {
+        console.log(result);
+
+        var timeframeDate = moment().format("MMM D");
+        var timeframeHour = moment().subtract(30, 'm').format("hh : mm A");
+        // moment().add(1, 'h').format("hhA");
+
+        var element = $("<div />");
+        // element.text("hhh");
+        element.append($("<img src='SQ9map-01.png' width=1523 />"));
+            element.addClass("container");
+            element.append('<div class="time">'+
+            // +timeframeDate+' &nbsp;&nbsp;from '+timeframeHour+' to current'+
+
+            '</div>');
+        $("#vis").append(element);
+
+      })
+      .catch(console.warn);
+  });
+
+for(let i=0; i<30;i++) {
+    let date_temp = moment().subtract(60*i, 'seconds').format("YYYY-MM-DD%20HH:mm:ss");
+    url_temp = 'https://crowdsourcedcity-api.herokuapp.com/api/devices_scanners.json?timestamp=' + date_temp;
+
+    raw_temp = d3.json(url_temp)
+
+    raw_temp.then(function(raw_data){
+  devices = raw_data.result.devices;
+    devices.forEach(function(d){
+      let currRow = {}
+      currRow.x = d.coordinates[0];
+      currRow.y = d.coordinates[1];
+      currRow.type = d.type;
+      currRow.is_furniture = d.is_furniture;
+      currRow.hour = date_temp.slice(13,15);
+      data.push(currRow)
+    })
+
+  })
+
+
+}
+
+  vegaEmbed('#vis', spec)
+    	// result.view provides access to the Vega View API
+      .then(result => {
+        console.log(result);
+
+        var timeframeDate = moment().format("MMM D");
+        var timeframeHour = moment().subtract(30, 'm').format("hh : mm A");
+        // moment().add(1, 'h').format("hhA");
+
+        var element = $("<div />");
+        // element.text("hhh");
+        element.append($("<img src='SQ9map-01.png' width=1523 />"));
+            element.addClass("container");
+            element.append('<div class="time">'+
+            // +timeframeDate+' &nbsp;&nbsp;from '+timeframeHour+' to current'+
+
+            '</div>');
+        $("#vis").append(element);
+
+      })
+      .catch(console.warn);
+
+  </script>
+</body>
